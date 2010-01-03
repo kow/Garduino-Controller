@@ -31,17 +31,17 @@ namespace PCComm
            SetControlState();
 
            GraphPane temperaturelongPane = temperaturelong.GraphPane;
-           CreateGraph(temperaturelongPane, "Temperature", 1440, 30, 0, 30);
-           GraphPane moisturelongPane = moisturelong.GraphPane;
-           CreateGraph(moisturelongPane, "Moisture", 1440, 30, 0, 100);
+           CreateGraph(temperaturelongPane, "Temperature", 1440 * 1, 30 * 1, 10, 30);
+           GraphPane moisturelongPane = moisturelong1.GraphPane;
+           CreateGraph(moisturelongPane, "Moisture", 1440 * 1, 30 * 1, 50, 100);
            GraphPane lightlongPane = lightlong.GraphPane;
-           CreateGraph(lightlongPane, "Light", 1440, 30, 0, 100);
+           CreateGraph(lightlongPane, "Light", 1440 * 1, 30 * 1, 0, 100);
            GraphPane temperatureshortPane = temperatureshort.GraphPane;
-           CreateGraph(temperatureshortPane, "Temperature", 120, 5, 0, 40);
+           CreateGraph(temperatureshortPane, "Temperature", 30, 2, 10, 30);
            GraphPane lightshortPane = lightshort.GraphPane;
-           CreateGraph(lightshortPane, "Light", 120, 5, 0, 100);
-           GraphPane moistureshortPane = moistureshort.GraphPane;
-           CreateGraph(moistureshortPane, "Moisture", 120, 5, 0, 100);
+           CreateGraph(lightshortPane, "Light", 30, 2, 0, 100);
+           GraphPane moistureshortPane = moistureshort1.GraphPane;
+           CreateGraph(moistureshortPane, "Moisture", 30, 2, 50, 100);
         }
 
         private void CreateGraph(GraphPane graph, string label, double xmax, double step, double ymin, double ymax)
@@ -67,14 +67,28 @@ namespace PCComm
             graph.XAxis.MajorGrid.IsVisible = true;
             graph.YAxis.MajorGrid.IsVisible = true;
 
+            graph.XAxis.Scale.IsVisible = false;
+
+
             // Save 1200 points.  At 50 ms sample rate, this is one minute
             // The RollingPointPairList is an efficient storage class that always
             // keeps a rolling set of point data without needing to shift any data values
             RollingPointPairList list = new RollingPointPairList((int)(xmax * 2));
+            RollingPointPairList list2 = new RollingPointPairList((int)(xmax * 2));
+            RollingPointPairList list3 = new RollingPointPairList((int)(xmax * 2));
 
             // Initially, a curve is added with no data points (list is empty)
             // Color is blue, and there will be no symbols
             LineItem curve = graph.AddCurve("", list, Color.Blue, SymbolType.None);
+            curve.Line.Width = 2.0F;
+
+            curve = graph.AddCurve("", list2, Color.Red, SymbolType.None);
+            curve.Line.Width = 2.0F;
+
+            curve = graph.AddCurve("", list3, Color.Green, SymbolType.None);
+
+            curve.Line.Width = 2.0F;
+
 
             // Scale the axes
             graph.AxisChange();
@@ -98,12 +112,12 @@ namespace PCComm
 
             _fasttimer = new Timer();         // Set up the timer for 3 seconds
             _fasttimer.Tick += new EventHandler(FastTimerEventProcessor);
-            _fasttimer.Interval = 500;
+            _fasttimer.Interval = 1000;
             _fasttimer.Start();
 
             _slowtimer = new Timer();         // Set up the timer for 3 seconds
             _slowtimer.Tick += new EventHandler(SlowTimerEventProcessor);
-            _slowtimer.Interval = 5000;
+            _slowtimer.Interval = 60000;
             _slowtimer.Start();
 
             // Save the beginning time for reference
@@ -126,21 +140,35 @@ namespace PCComm
                 return;
 
             //0 = moisture
-            //1 = light
-            //2 = temp
-            //3 = mapped_temp
-            //4 = seconds_elapsed
-            //5 = seconds_light
-            //6 = proportion_to_light
-            //7 = proportion_lit
+            //1 = moisture
+            //2 = moisture
+            //3 = light
+            //4 = temp
+            //5 = mapped_temp
+            //6 = seconds_elapsed
+            //7 = seconds_light
+            //8 = proportion_to_light
+            //9 = proportion_lit
 
-            temperature.Text = String.Format("{0:0.0}", Double.Parse(values[3])) + "°C";
-            light.Text = String.Format("{0:0.0}", Double.Parse(values[1]) / 1024 * 100) + "%";
-            moisture.Text = String.Format("{0:0.0}", Double.Parse(values[0]) / 1024 * 100) + "%";
+            Double moisture1 = Double.Parse(values[0]);
+            Double moisture2 = Double.Parse(values[1]);
+            Double moisture3 = Double.Parse(values[2]);
+            Double light1 = Double.Parse(values[3]);
+            Double temp = Double.Parse(values[4]);
+            Double mapped_temp = Double.Parse(values[5]);
+            Double seconds_elapsed = Double.Parse(values[6]);
 
-            UpdateGraph(temperatureshort, 120, Double.Parse(values[3]));
-            UpdateGraph(lightshort, 120, Double.Parse(values[0]) / 1024 * 100);
-            UpdateGraph(moistureshort, 120, Double.Parse(values[1]) / 1024 * 100);
+            temperature.Text = String.Format("{0:0.0}", mapped_temp) + "°C";
+            light.Text = String.Format("{0:0.0}", light1 / 1024 * 100) + "%";
+            moisturedisplay1.Text = String.Format("{0:0.0}", moisture1 / 1024 * 100) + "%";
+            moisturedisplay2.Text = String.Format("{0:0.0}", moisture2 / 1024 * 100) + "%";
+            moisturedisplay3.Text = String.Format("{0:0.0}", moisture3 / 1024 * 100) + "%";
+
+            UpdateGraph(temperatureshort, 30, mapped_temp, 0);
+            UpdateGraph(moistureshort1, 30, moisture1 / 1024 * 100, 0);
+            UpdateGraph(moistureshort1, 30, moisture2 / 1024 * 100, 1);
+            UpdateGraph(moistureshort1, 30, moisture3 / 1024 * 100, 2);
+            UpdateGraph(lightshort, 30, light1 / 1024 * 100, 0);
         }
 
         private void SlowTimerEventProcessor(Object myObject,
@@ -156,25 +184,28 @@ namespace PCComm
             if (values.Length < 5)
                 return;
 
-            //0 = moisture
-            //1 = light
-            //2 = temp
-            //3 = mapped_temp
-            //4 = seconds_elapsed
-            //5 = seconds_light
-            //6 = proportion_to_light
-            //7 = proportion_lit
+            Double moisture1 = Double.Parse(values[0]);
+            Double moisture2 = Double.Parse(values[1]);
+            Double moisture3 = Double.Parse(values[2]);
+            Double light1 = Double.Parse(values[3]);
+            Double temp = Double.Parse(values[4]);
+            Double mapped_temp = Double.Parse(values[5]);
+            Double seconds_elapsed = Double.Parse(values[6]);
 
-            temperature.Text = String.Format("{0:0.0}", Double.Parse(values[3])) + "°C";
-            light.Text = String.Format("{0:0.0}", Double.Parse(values[1]) / 1024 * 100) + "%";
-            moisture.Text = String.Format("{0:0.0}", Double.Parse(values[0]) / 1024 * 100) + "%";
+            temperature.Text = String.Format("{0:0.0}", mapped_temp) + "°C";
+            light.Text = String.Format("{0:0.0}", light1 / 1024 * 100) + "%";
+            moisturedisplay1.Text = String.Format("{0:0.0}", moisture1 / 1024 * 100) + "%";
+            moisturedisplay2.Text = String.Format("{0:0.0}", moisture1 / 1024 * 100) + "%";
+            moisturedisplay3.Text = String.Format("{0:0.0}", moisture1 / 1024 * 100) + "%";
 
-            UpdateGraph(temperaturelong, 3600, Double.Parse(values[3]));
-            UpdateGraph(moisturelong, 3600, Double.Parse(values[0])/1024*100);
-            UpdateGraph(lightlong, 3600, Double.Parse(values[1])/1024*100);
+            UpdateGraph(temperaturelong, 1440, mapped_temp, 0);
+            UpdateGraph(moisturelong1, 1440, moisture1 / 1024 * 100, 0);
+            UpdateGraph(moisturelong1, 1440, moisture2 / 1024 * 100, 1);
+            UpdateGraph(moisturelong1, 1440, moisture3 / 1024 * 100, 2);
+            UpdateGraph(lightlong, 1440, light1 / 1024 * 100, 0);
         }
 
-        private void UpdateGraph(ZedGraphControl graph, double scale, double value)
+        private void UpdateGraph(ZedGraphControl graph, double scale, double value, int item)
         {
 
             // Make sure that the curvelist has at least one curve
@@ -182,7 +213,7 @@ namespace PCComm
                 return;
 
             // Get the first CurveItem in the graph
-            LineItem curve = graph.GraphPane.CurveList[0] as LineItem;
+            LineItem curve = graph.GraphPane.CurveList[item] as LineItem;
             if (curve == null)
                 return;
 
